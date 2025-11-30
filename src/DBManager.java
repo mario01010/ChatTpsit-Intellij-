@@ -3,7 +3,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DBManager {
-    private static final String DB_URL = "jdbc:postgresql://pg-3d352acb-chattpsit.g.aivencloud.com:15477/defaultdb?ssl=require&user=avnadmin&password=[Password]";
+    private static final String DB_URL = "jdbc:postgresql://pg-3d352acb-chattpsit.g.aivencloud.com:15477/defaultdb?ssl=require&user=avnadmin&";
     private Connection conn;
 
     public DBManager() {
