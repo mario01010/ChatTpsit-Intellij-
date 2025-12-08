@@ -1,9 +1,11 @@
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.sql.SQLException;
 
 public class UserManager {
-    private Map<String, User> userList;
+    public Map<String, User> userList;
     private Map<String, User> online;
     private Map<User, ClientHandler> clientHandlers;
     private DBManager dbManager;
@@ -14,8 +16,7 @@ public class UserManager {
         clientHandlers = new HashMap<>();
         dbManager = new DBManager();
 
-        // carica utenti dal DB all'avvio
-        loadUsersFromDB();
+        this.loadUsersFromDB();
     }
 
     private void loadUsersFromDB() {
@@ -35,7 +36,8 @@ public class UserManager {
         } else {
             userList.put(u.getUsername(), u);
             try {
-                dbManager.addUser(u.getUsername(), u.getPassword(), u.getStatus() ? 1 : 0);
+                // Nel DB salva status come 0 (offline) di default
+                dbManager.addUser(u.getUsername(), u.getPassword(), 0);
             } catch (SQLException e) {
                 e.printStackTrace();
                 System.out.println("Errore durante la registrazione dell'utente nel database.");
@@ -89,5 +91,9 @@ public class UserManager {
     public boolean removeClientHandler(User user) {
         return clientHandlers.remove(user) != null;
     }
-}
 
+    // Aggiungi questo metodo per ottenere tutti gli utenti online
+    public List<User> getOnlineUsers() {
+        return new ArrayList<>(online.values());
+    }
+}

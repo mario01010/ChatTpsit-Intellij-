@@ -27,7 +27,7 @@ public class ChatManager{
     public Chat createDM(User u1, User u2) {
         if (u1 != null && u2 != null) {
             try {
-                int chatId = dbManager.addChat("DirectMessage");
+                int chatId = dbManager.addChat("DM");
 
                 DM dm = new DM(chatId, u1, u2);
 
