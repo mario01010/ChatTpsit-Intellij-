@@ -18,7 +18,6 @@ public class ClientChatGUI extends JFrame {
     private int currentChatId = -1;
     private ScheduledExecutorService scheduler;
 
-    // Componenti GUI
     private JList<String> chatList;
     private DefaultListModel<String> chatListModel;
     private JList<String> onlineUsersList;
@@ -85,19 +84,43 @@ public class ClientChatGUI extends JFrame {
         chatList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && chatList.getSelectedIndex() != -1) {
                 String selected = chatList.getSelectedValue();
-                if (selected != null) {
+                if (selected != null && !selected.equals("Nessuna chat disponibile")) {
                     try {
-                        String[] parts = selected.split("ID: ");
-                        if (parts.length > 1) {
-                            int chatId = Integer.parseInt(parts[1].replace(")", ""));
-                            openChat(chatId);
+                        // Formato: "ID=1  (DM)"
+                        // Estrai solo il numero dell'ID
+                        int startIndex = selected.indexOf("ID=");
+                        if (startIndex != -1) {
+                            // Trova lo spazio dopo l'ID
+                            int endIndex = selected.indexOf(" ", startIndex + 3);
+                            if (endIndex == -1) {
+                                // Se non c'è spazio, prendi fino alla parentesi
+                                endIndex = selected.indexOf("(", startIndex + 3);
+                            }
+
+                            if (endIndex != -1) {
+                                String idStr = selected.substring(startIndex + 3, endIndex).trim();
+                                int chatId = Integer.parseInt(idStr);
+                                openChat(chatId);
+                            } else {
+                                // Fallback: prendi tutto dopo "ID="
+                                String idStr = selected.substring(startIndex + 3).trim();
+                                // Rimuovi eventuali parentesi alla fine
+                                if (idStr.contains("(")) {
+                                    idStr = idStr.substring(0, idStr.indexOf("(")).trim();
+                                }
+                                int chatId = Integer.parseInt(idStr);
+                                openChat(chatId);
+                            }
                         }
                     } catch (Exception ex) {
                         ex.printStackTrace();
+                        JOptionPane.showMessageDialog(this,
+                                "Errore nell'aprire la chat: " + ex.getMessage());
                     }
                 }
             }
         });
+
         JScrollPane chatScroll = new JScrollPane(chatList);
         chatPanel.add(chatScroll, BorderLayout.CENTER);
 
@@ -249,13 +272,6 @@ public class ClientChatGUI extends JFrame {
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            // Avvia thread per ricevere messaggi
-           /* if (executor != null) {
-                executor.shutdown();
-            }
-            executor = Executors.newSingleThreadExecutor();
-            executor.submit(this::receiveMessages);*/
-
             return true;
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this,
@@ -320,11 +336,16 @@ public class ClientChatGUI extends JFrame {
 
     private void receiveMessages() {
         try {
+            StringBuilder buffer = new StringBuilder();
             String line;
+
             while ((line = in.readLine()) != null) {
+                System.out.println("DEBUG Ricevuto: " + line); // Debug
+
                 final String message = line;
                 SwingUtilities.invokeLater(() -> {
                     if (message.startsWith("[") && message.contains("]")) {
+                        // Gestione messaggio in chat
                         try {
                             String[] parts = message.split("] ", 2);
                             String chatInfo = parts[0].substring(1);
@@ -335,7 +356,7 @@ public class ClientChatGUI extends JFrame {
                                 chatArea.append(messageContent + "\n");
                                 chatArea.setCaretPosition(chatArea.getDocument().getLength());
                             } else {
-                                // Mostra notifica
+                                // Mostra notifica per altre chat
                                 System.out.println("Nuovo messaggio in chat " + chatId + ": " + messageContent);
                             }
                         } catch (Exception e) {
@@ -343,9 +364,25 @@ public class ClientChatGUI extends JFrame {
                         }
                     } else if (message.startsWith("Le tue chat:")) {
                         handleChatListResponse(message);
+                    } else if (message.contains("• ID=")) {
+                        if (message.startsWith("[SERVER] ")) {
+                            String chatInfo = message.substring(9).trim();
+                            if (chatInfo.startsWith("Le tue chat:")) {
+                                handleChatListResponse(chatInfo);
+                            } else if (chatInfo.startsWith("• ID=")) {
+                                handleChatListResponse("Le tue chat:\n" + chatInfo);
+                            }
+                        } else if (message.startsWith("• ID=")) {
+                            handleChatListResponse("Le tue chat:\n" + message);
+                        }
                     } else if (message.startsWith("Messaggi della chat")) {
                         handleChatMessagesResponse(message);
+                    } else if (message.startsWith("ID: ")) {
+                        // Gestisci la risposta quando crei una nuova chat
+                        JOptionPane.showMessageDialog(this, message);
+                        loadChats(); // Ricarica la lista delle chat
                     } else {
+                        // Mostra altri messaggi generici
                         chatArea.append("[SERVER] " + message + "\n");
                     }
                 });
@@ -364,12 +401,18 @@ public class ClientChatGUI extends JFrame {
         chatListModel.clear();
         String[] lines = response.split("\n");
         for (String line : lines) {
-            if (line.startsWith(" • ID=")) {
-                chatListModel.addElement(line.substring(3));
+            line = line.trim();
+            if (line.startsWith("• ")) {
+                chatListModel.addElement(line.substring(2));
             }
         }
+        if (chatListModel.isEmpty()) {
+            chatListModel.addElement("Nessuna chat disponibile");
+            chatList.setEnabled(false);
+        } else {
+            chatList.setEnabled(true);
+        }
     }
-
     private void handleChatMessagesResponse(String response) {
         String[] lines = response.split("\n");
         chatArea.setText("");
