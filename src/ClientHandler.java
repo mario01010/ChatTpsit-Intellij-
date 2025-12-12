@@ -152,13 +152,41 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
-            if (cmd.equals("/list")) {
-                List<Chat> chats = dbManager.getAllChatsByUser(user.getID());
-                out.println("Le tue chat:");
-                for (Chat c : chats) {
-                    out.println(" • ID=" + c.getID() + "  (" + c.getChatType() + ")");
+            try {
+                if (cmd.equals("/list")) {
+                    List<Chat> chats = dbManager.getAllChatsByUser(user.getID());
+
+                    // FORMATO: "TIPO:id:info"
+                    for (Chat c : chats) {
+                        if (c.getChatType().equals("DM")) {
+                            // Per DM: mostra l'altro utente
+                            String otherUser = "";
+                            for (User u : c.getParticipants()) {
+                                if (u.getID() != user.getID()) {
+                                    otherUser = u.getUsername();
+                                    break;
+                                }
+                            }
+                            out.println("DM:" + c.getID() + ":" + otherUser);
+
+                        } else if (c.getChatType().equals("Gruppo")) {
+                            // Per Gruppo: ottieni il nome
+                            String groupName = "";
+                            if (c instanceof Gruppo) {
+                                Gruppo gruppo = (Gruppo) c;
+                                groupName = gruppo.getNome(); // getNome() esiste solo in Gruppo
+                            }
+                            out.println("GRUPPO:" + c.getID() + ":" + groupName);
+                        }
+                    }
+                    out.println("LIST_END"); // Marcatore di fine lista
+                    return;
                 }
-                return;
+
+                // ... altri comandi rimangono uguali
+
+            } catch (Exception e) {
+                out.println("ERROR: " + e.getMessage());
             }
 
             if (cmd.startsWith("/open ")) {
